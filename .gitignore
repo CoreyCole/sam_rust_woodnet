@@ -1,3 +1,4 @@
 target/
 lambda.zip
+.aws-sam/
 

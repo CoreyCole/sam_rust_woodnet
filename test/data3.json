@@ -1,0 +1,11 @@
+{
+    "head": {
+        "method": "POST",
+        "uri": "example.com",
+        "version": "0.1.0"
+    },
+    "body": {
+        "username": "hello",
+        "password_hash": "world"
+    }
+}

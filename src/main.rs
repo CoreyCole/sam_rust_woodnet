@@ -18,9 +18,25 @@ struct CustomResponse {
 /// Write your code inside it.
 /// There are some code examples in the Runtime repository:
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
-async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+async fn handler(event: Request) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
     match event.body() {
+        Body::Text(payload) => {
+            let req = serde_json::from_str::<CustomRequest>(payload)?;
+            // Return something that implements IntoResponse.
+            // It will be serialized to the right response event automatically by the runtime
+            let response = CustomResponse {
+                username: req.username,
+                req: payload.clone(),
+            };
+            log::info!("{}", req.password_hash);
+            let resp = Response::builder()
+                .status(200)
+                .header("content-type", "application/json")
+                .body(json!(response).to_string().into())
+                .map_err(Box::new)?;
+            Ok(resp)
+        },
         Body::Empty => {
             let resp = Response::builder()
                 .status(200)
@@ -38,37 +54,12 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
                 .map_err(Box::new)?;
             Ok(resp)
         },
-        Body::Text(payload) => {
-            let req = serde_json::from_str::<CustomRequest>(payload)?;
-            // Return something that implements IntoResponse.
-            // It will be serialized to the right response event automatically by the runtime
-            let response = CustomResponse {
-                username: req.username,
-                req: payload.clone(),
-            };
-            log::info!("{}", req.password_hash);
-            let resp = Response::builder()
-                .status(200)
-                .header("content-type", "application/json")
-                .body(json!(response).to_string().into())
-                .map_err(Box::new)?;
-            Ok(resp)
-        }
     }
-    
-
-    
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        // disabling time is handy because CloudWatch will add the ingestion time.
-        .without_time()
-        .init();
-
-    run(service_fn(function_handler)).await
+    run(service_fn(handler)).await
 }
 
 /* use lambda_runtime::{service_fn, Context, LambdaEvent, Error as LambdaError};
