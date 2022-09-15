@@ -6,6 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lambda_http = "0.4"
-tokio = { version = "1", features = ["full"] }
+aws-config = "0.48.0"
+lambda_http = "0.6.1"
+lambda_runtime = "0.6.1"
+log = "0.4.17"
+serde = "1.0.144"
+serde_derive = "1.0.144"
+serde_json = "1.0.85"
+simple_logger = "2.3.0"
+tokio = { version = "1", features = ["macros"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
+uuid = { version = "1.1.2", features = ["v4"] }
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
 
