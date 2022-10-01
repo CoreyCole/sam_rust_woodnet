@@ -5,6 +5,7 @@
 - AWS Serverless Application Model (SAM) [CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 - [docker](https://www.docker.com/products/docker-desktop/)
 - [llvm](https://github.com/llvm/llvm-project/releases)
+- [surrealdb](https://surrealdb.com/install)
 
 ### commands
 ```
