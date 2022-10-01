@@ -1,19 +1,117 @@
+#![allow(clippy::needless_return)]
+
 use lambda_http::{run, service_fn, Body, Error, Request, Response};
-use serde_json::{json, Value};
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
+use serde_json::{json, Value};
+// use surrealdb::Session;
+
+const DB_URL: &str = "localhost:8000";
+
+#[derive(Deserialize, Serialize)]
+enum Route {
+    SignUp,
+    LogIn,
+    LogOut,
+    UserDelete,
+    Invalid,
+}
+
+impl Route {
+    fn from_str(str: &str) -> Self {
+        match str {
+            "SignUp" => Route::SignUp,
+            "LogIn" => Route::LogIn,
+            "LogOut" => Route::LogOut,
+            "UserDelete" => Route::UserDelete,
+            _ => Route::Invalid,
+        }
+    }
+}
 
 #[derive(Deserialize)]
 struct CustomRequest {
-    username: String,
-    password_hash: String,
+    route: String,
+    data: Value,
 }
 
 #[derive(Serialize)]
 struct CustomResponse {
-    username: String,
-    req: String,
+    route: Route,
+    data: Value,
 }
+
+fn handle_sign_up(route: Route, req: Value) -> Result<Response<Body>, Error> {
+    // let session = Session::for_kv();
+    // println!("{:?}", session);
+    let res = json!({
+        "success": true,
+        "req": req,
+    });
+    return build_response(route, res);
+}
+
+fn handle_log_in(route: Route, req: Value) -> Result<Response<Body>, Error> {
+    let res = json!({
+        "success": true,
+        "req": req,
+    });
+    return build_response(route, res);
+}
+
+fn handle_log_out(route: Route, req: Value) -> Result<Response<Body>, Error> {
+    let res = json!({
+        "success": true,
+        "req": req,
+    });
+    return build_response(route, res);
+}
+
+fn handle_user_delete(route: Route, req: Value) -> Result<Response<Body>, Error> {
+    let res = json!({
+        "success": true,
+        "req": req,
+    });
+    return build_response(route, res);
+}
+
+fn handle_route(req: CustomRequest) -> Result<Response<Body>, Error> {
+    let route = Route::from_str(req.route.as_str());
+    println!("route = {}", req.route);
+    return match route {
+        Route::SignUp => handle_sign_up(route, req.data),
+        Route::LogIn => handle_log_in(route, req.data),
+        Route::LogOut => handle_log_out(route, req.data),
+        Route::UserDelete => handle_user_delete(route, req.data),
+        _ => build_err_response(route, "invalid route"),
+    };
+}
+
+fn build_response(route: Route, data: Value) -> Result<Response<Body>, Error> {
+    // Return something that implements IntoResponse.
+    // It will be serialized to the right response event automatically by the runtime
+    let response = CustomResponse { route, data };
+    let response = Response::builder()
+        .status(200)
+        .header("content-type", "application/json")
+        .body(json!(response).to_string().into())
+        .map_err(Box::new)?;
+    return Ok(response);
+}
+
+fn build_err_response(route: Route, err: &str) -> Result<Response<Body>, Error> {
+    let response = CustomResponse {
+        route,
+        data: err.into(),
+    };
+    let response = Response::builder()
+        .status(500)
+        .header("Content-Type", "text/html")
+        .body(json!(response).to_string().into())
+        .map_err(Box::new)?;
+    return Ok(response);
+}
+
 /// This is the main body for the function.
 /// Write your code inside it.
 /// There are some code examples in the Runtime repository:
@@ -23,37 +121,20 @@ async fn handler(event: Request) -> Result<Response<Body>, Error> {
     match event.body() {
         Body::Text(payload) => {
             let req = serde_json::from_str::<CustomRequest>(payload)?;
-            // Return something that implements IntoResponse.
-            // It will be serialized to the right response event automatically by the runtime
-            let response = CustomResponse {
-                username: req.username,
-                req: payload.clone(),
-            };
-            log::info!("{}", req.password_hash);
-            let resp = Response::builder()
-                .status(200)
-                .header("content-type", "application/json")
-                .body(json!(response).to_string().into())
-                .map_err(Box::new)?;
-            Ok(resp)
-        },
+            return handle_route(req);
+        }
+        Body::Binary(payload) => {
+            let req = serde_json::from_slice::<CustomRequest>(payload)?;
+            return handle_route(req);
+        }
         Body::Empty => {
             let resp = Response::builder()
                 .status(200)
-                .header("Content-Type", "application/json")
+                .header("Content-Type", "text/html")
                 .body("request body empty!".into())
                 .map_err(Box::new)?;
             Ok(resp)
-        },
-        Body::Binary(payload) => {
-            let req = serde_json::from_slice::<CustomRequest>(payload)?;
-            let resp = Response::builder()
-                .status(200)
-                .header("Content-Type", "application/json")
-                .body("request body binary!".into())
-                .map_err(Box::new)?;
-            Ok(resp)
-        },
+        }
     }
 }
 
@@ -62,84 +143,13 @@ async fn main() -> Result<(), Error> {
     run(service_fn(handler)).await
 }
 
-/* use lambda_runtime::{service_fn, Context, LambdaEvent, Error as LambdaError};
-use serde::Deserialize;
-use serde::Serialize;
-use serde_json::{json, Value};
-use uuid::Uuid;
-use log;
-
-#[derive(Deserialize)]
-struct Request {
-    username: String,
-    password_hash: String
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_req() {
+        use lambda_http::Request;
+        let req = Request::default();
+        println!("{:?}", req);
+        assert!(true);
+    }
 }
-
-/// This is a made-up example of what a response structure may look like.
-/// There is no restriction on what it can be. The runtime requires responses
-/// to be serialized into json. The runtime pays no attention
-/// to the contents of the response payload.
-#[derive(Serialize)]
-struct Response {
-    req_id: String,
-    msg: String,
-}
-
-#[tokio::main]
-async fn main() -> Result<(), LambdaError> {
-    let func = service_fn(woodnet);
-    lambda_runtime::run(func).await?;
-    Ok(())
-}
-
-pub(crate) async fn woodnet(event: LambdaEvent<Request>) -> Result<Response, LambdaError> {
-    // extract some useful info from the request
-    let username = event.payload.username;
-    let password_hash = event.payload.password_hash;
-    println!("username {} password_hash {}", username, password_hash);
-
-    // prepare the response
-    let resp = Response {
-        req_id: event.context.request_id,
-        msg: format!("username {} pasword_hash {}", username, password_hash),
-    };
-
-    // return `Response` (it will be serialized to JSON automatically by the runtime)
-    Ok(resp)
-} */
-
-/* #[tokio::main]
-async fn main() -> Result<(), LambdaError> {
-    let func = service_fn(handler);
-    lambda_runtime::run(func).await?;
-    Ok(())
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct CustomEvent {
-
-}
-
-pub(crate) async fn handler(event: LambdaEvent<CustomEvent>) -> Result<Value, LambdaError> {
-    log::info!("{:?}", event);
-    let uuid = Uuid::new_v4().to_string();
-    Ok(json!({ "user_id": uuid.to_owned() }))
-} */
-
-/*
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    lambda_runtime::run(handler(hello)).await?;
-
-    Ok(())
-}
-
-/// Sample pure Lambda function
-async fn hello(_request: Request, _context: Context) -> Result<impl IntoResponse, Error> {
-    Ok(Response::builder()
-        .status(200)
-        .header("Content-Type", "text/plain")
-        .body("Hello, World!".to_string())?)
-}
-*/
-

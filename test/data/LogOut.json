@@ -1,0 +1,6 @@
+{
+    "route": "LogOut",
+    "data": {
+        "hello": "world"
+    }
+}

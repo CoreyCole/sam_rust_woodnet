@@ -1,0 +1,6 @@
+{
+    "route": "UserDelete",
+    "data": {
+        "hello": "world"
+    }
+}
